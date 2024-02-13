@@ -21,7 +21,7 @@ class UserSeeder extends Seeder
             'password' => Hash::make('rizgi123'),
             'addres' => 'Jln. Masjid Nurul Fajri',
             'no_hp' => '0895379254459',
-            'role' => 'seller'
+            'role' => 'admin'
         ]);
     }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +23,20 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 Route::post('/register',[AuthController::class,'register'])->name('register');
 Route::post('/login',[AuthController::class,'login'])->name('login');
-Route::get('/test', [AuthController::class, 'test'])->name('test');
 
-Route::post('/todos', [ProductController::class, 'store'])->name('product.store');
+Route::middleware(['auth:api'])->group( function (){
+    Route::get('products', [ProductController::class,'index'])->name('product.index');
+    Route::post('/products', [ProductController::class, 'store'])->name('product.store');
+    Route::get('/products/{id}', [ProductController::class, 'show'])->name('product.show');
+    Route::put('/products/{id}', [ProductController::class, 'update'])->name('product.update');
+    Route::delete('/products/{id}', [ProductController::class, 'destroy'])->name('product.destroy');
+
+    Route::get('/categories', [CategoryController::class, 'index'])->name('categorie.index');
+    Route::get('/categories/{id}', [CategoryController::class,'show'])->name('categories.show');
+    Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
+    Route::put('/categories/{id}', [CategoryController::class, 'update'])->name('categories.update');
+    Route::delete('/categories/{id}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+
+    Route::post('/sellers', [AuthController::class, 'addSeller'])->name('sellers.addSeller');
+});
+

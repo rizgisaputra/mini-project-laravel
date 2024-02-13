@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('password');
             $table->string('addres', 50);
             $table->string('no_hp', 20);
-            $table->string('role', 50);
+            $table->enum('role',['admin', 'seller', 'customer']);
             $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();
             $table->timestamps();

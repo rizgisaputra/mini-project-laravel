@@ -23,9 +23,12 @@ class AuthController extends Controller
                 'message' => 'email/password wrong'
             ], 401);
         }
+
+        $role = User::select('role')->where('email', $credentials['email'])->first();
         return response()->json([
             'status' => 'ok',
-            'token' => $token
+            'token' => $token,
+            'role' => $role
         ]);
     }
 
@@ -54,11 +57,31 @@ class AuthController extends Controller
 
     }
 
-    public function logout(Request $request){
-        Auth::logout();
-        return response()->json([
-            'status' => 'succes',
-            'message' => 'sucesfully logout'
+    public function addSeller(Request $request){
+        if(auth()->user()->role == 'customer' || auth()->user()->role == 'seller'){
+            return response()->json([
+                'message' => 'customer or seller cannot add seller'
+            ], 403);
+        }
+
+        $validate = $request->validate([
+            'name' => 'required|string|max:255',
+            'email'=> 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8',
+            'addres' => 'required|string|max:255',
+            'no_hp' => 'required|string|max:255'
         ]);
+
+        $validate['role'] = 'seller';
+        $data = User::create($validate);
+        if($data == false){
+            return response()->json([
+                'message' => 'failed to add seller'
+            ], 500);
+        }
+
+        return response()->json([
+            'message' => 'create new seller sucesfully'
+        ], 201);
     }
 }
