@@ -2,7 +2,11 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\HeaderCustomerCartController;
+use App\Http\Controllers\HeaderDetailCustomerCartController;
 use App\Http\Controllers\ProductController;
+use App\Models\HeaderCustomerCart;
+use App\Models\ProductCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -38,5 +42,16 @@ Route::middleware(['auth:api'])->group( function (){
     Route::delete('/categories/{id}', [CategoryController::class, 'destroy'])->name('categories.destroy');
 
     Route::post('/sellers', [AuthController::class, 'addSeller'])->name('sellers.addSeller');
+    Route::put('/products-categories/{id}', [ProductCategory::class, 'updateCategoryInProductCategories'])
+    ->name('products_categories.updateCategoryInProductCategories');
+
+    Route::post('/headers-details', [HeaderDetailCustomerCartController::class, 'store'])->name('headers-details.store');
+    Route::get('/headers-details', [HeaderDetailCustomerCartController::class, 'index'])->name('headers-details.index');
+    Route::get('/headers-details/{id}', [HeaderDetailCustomerCartController::class, 'show'])->name('headers-details.show');
+    Route::put('/headers-details/{id}', [HeaderDetailCustomerCartController::class, 'update'])->name('headers-details.update');
+    Route::delete('/headers-details/{id}', [HeaderDetailCustomerCartController::class, 'destroy'])->name('headers-datail.destroy');
+
+    Route::get('/headers', [HeaderCustomerCartController::class, 'index'])->name('headers.index');
+    Route::get('/headers/{id}', [HeaderCustomerCartController::class, 'show'])->name('headers.show');
 });
 

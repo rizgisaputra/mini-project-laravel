@@ -17,6 +17,7 @@ return new class extends Migration
             $table->text('img');
             $table->text('description');
             $table->integer('price');
+            $table->integer('stock');
             $table->unsignedBigInteger('user_id');
             $table->foreign('user_id')->references('id')->on('users');
             $table->timestamps();

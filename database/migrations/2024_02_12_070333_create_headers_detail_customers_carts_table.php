@@ -18,7 +18,7 @@ return new class extends Migration
             $table->unsignedBigInteger('product_id');
             $table->foreign('product_id')->references('id')->on('products');
             $table->integer('quantity');
-            $table->integer('sub_total');
+            $table->float('sub_total');
             $table->timestamps();
         });
     }

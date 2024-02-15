@@ -15,9 +15,9 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('user_id');
             $table->foreign('user_id')->references('id')->on('users');
-            $table->integer('total_product');
-            $table->integer('total_quantity');
-            $table->integer('total_price');
+            $table->integer('total_product')->nullable(true);
+            $table->integer('total_quantity')->nullable(true);
+            $table->float('total_price')->nullable(true);
             $table->timestamps();
         });
     }

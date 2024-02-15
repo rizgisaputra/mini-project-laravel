@@ -1,10 +1,13 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Models\HeaderCustomerCart;
+use App\Models\HeaderDetailCustomerCart;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
@@ -49,8 +52,15 @@ class AuthController extends Controller
             'no_hp' => $request->no_hp,
             'role' => 'customer'
         ];
-
         $user = User::create($data);
+
+        $data_header_cart = [
+            'user_id' => $user->id,
+            'total_product' => null,
+            'total_quantity' => null,
+            'total_price' => null
+        ];
+        $header_cart = HeaderCustomerCart::create($data_header_cart);
         return response()->json([
            'status'=> 'registration sucessfully',
         ]);
