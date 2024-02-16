@@ -11,14 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('headers_detail_customers_carts', function (Blueprint $table) {
+        Schema::create('header_details_orders', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('customer_cart_id');
-            $table->foreign('customer_cart_id')->references('id')->on('headers_customers_carts');
+            $table->unsignedBigInteger('header_order_id');
             $table->unsignedBigInteger('product_id');
-            $table->foreign('product_id')->references('id')->on('products');
             $table->integer('quantity');
-            $table->float('sub_total');
+            $table->integer('price');
             $table->timestamps();
         });
     }
@@ -28,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('headers_detail_customers_carts');
+        Schema::dropIfExists('header_details_orders');
     }
 };

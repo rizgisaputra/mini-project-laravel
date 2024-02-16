@@ -5,9 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class HeaderCustomerCart extends Model
+class HeaderOrder extends Model
 {
     use HasFactory;
-    protected $table = 'headers_customers_carts';
+    protected $table = 'header_orders';
     protected $guarded = [];
 }

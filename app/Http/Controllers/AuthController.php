@@ -53,14 +53,6 @@ class AuthController extends Controller
             'role' => 'customer'
         ];
         $user = User::create($data);
-
-        $data_header_cart = [
-            'user_id' => $user->id,
-            'total_product' => null,
-            'total_quantity' => null,
-            'total_price' => null
-        ];
-        $header_cart = HeaderCustomerCart::create($data_header_cart);
         return response()->json([
            'status'=> 'registration sucessfully',
         ]);

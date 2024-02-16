@@ -12,21 +12,20 @@ class ProductController extends Controller
 {
     public function index()
     {
-        $role = auth()->user()->role;
-        if($role == 'customer' || $role == 'admin'){
-            $data = Product::select('name', 'img', 'price')->get();
-            return response()->json([
-                'status' => 'ok',
-                'data' => $data
-            ], 200);
-        }else if($role == 'seller'){
-            $user_id = auth()->id();
-            $data = Product::select('name', 'img', 'price')->where('user_id', $user_id)->get();
-            return response()->json([
-                'status' => 'ok',
-                'data' => $data
-            ], 200);
-        }
+        $user_id = auth()->id();
+        $data = Product::select('name', 'img', 'price')->where('user_id', $user_id)->get();
+        return response()->json([
+            'status' => 'ok',
+            'data' => $data
+        ], 200);
+    }
+
+    public function indexForAdminAndCustomer(){
+        $data = Product::select('name', 'img', 'price')->get();
+        return response()->json([
+            'status' => 'ok',
+            'data' => $data
+        ], 200);
     }
 
     public function store(Request $request)
@@ -37,24 +36,6 @@ class ProductController extends Controller
             return response()->json([
                 'message' => 'customer cannot add product'
             ], 403);
-        }else if($role == 'admin'){
-            $validated = $request->validate([
-                'name' => 'required',
-                'img' => 'required',
-                'description' => 'required',
-                'price' => 'required',
-                'stock' => 'required',
-                'user_id' => 'required',
-                'categories' => 'array|required',
-                'categories.*.id' => 'required'
-            ]);
-
-            $getID = User::where('id', $validated['user_id'])->where('role', 'seller')->first();
-            if($getID == null){
-                return response()->json([
-                    'message' => 'data not found'
-                ], 404);
-            }
         }else if($role == 'seller'){
             $validated = $request->validate([
                 'name' => 'required',
@@ -106,35 +87,89 @@ class ProductController extends Controller
         ], 201);
     }
 
+    public function storeForAdmin(Request $request){
+        $validated = $request->validate([
+            'name' => 'required',
+            'img' => 'required',
+            'description' => 'required',
+            'price' => 'required',
+            'stock' => 'required',
+            'user_id' => 'required',
+            'categories' => 'array|required',
+            'categories.*.id' => 'required'
+        ]);
+
+        $getID = User::where('id', $validated['user_id'])->where('role', 'seller')->first();
+        if($getID == null){
+            return response()->json([
+                'message' => 'data not found'
+            ], 404);
+        }
+
+        if($validated['stock'] == 0){
+            return response()->json([
+                'message' => 'stock cannot empty'
+            ], 400);
+        }
+
+        $categories = $validated['categories'];
+        unset($validated['categories']);
+
+        DB::beginTransaction();
+        try{
+            $product = Product::create($validated);
+            $createdCategories = [];
+
+            foreach($categories as $category){
+                $dt = [
+                    'product_id' => $product->id,
+                    'category_id' => $category['id']
+                ];
+                $createdCategories[] =  ProductCategory::create($dt);
+            }
+            $product->categories = $createdCategories;
+            DB::commit();
+
+        }catch(\Throwable $th){
+            DB::rollBack();
+            return response()->json([
+                'message' => 'data failed to create'
+            ], 500);
+        }
+
+        return response()->json([
+            'message' => 'create data sucessfully'
+        ], 201);
+    }
+
     public function show(string $id)
     {
-        $role = auth()->user()->role;
-        if($role == 'customer' || $role == 'admin'){
-            $data = Product::where('id', $id)->first();
-            if($data == null){
-                return response()->json([
-                    'message' => 'data not found'
-                ], 404);
-            }
-
+        $user_id = auth()->id();
+        $data = Product::where('id', $id)->where('user_id', $user_id)->first();
+        if($data == null){
             return response()->json([
-                'message' => 'ok',
-                'data' => $data
-            ], 200);
-        }else if($role == 'seller'){
-            $user_id = auth()->id();
-            $data = Product::where('id', $id)->where('user_id', $user_id)->first();
-            if($data == null){
-                return response()->json([
-                    'message' => 'data not found'
-                ], 404);
-            }
-
-            return response()->json([
-                'message' => 'ok',
-                'data' => $data
-            ], 200);
+                'message' => 'data not found'
+            ], 404);
         }
+
+        return response()->json([
+            'message' => 'ok',
+            'data' => $data
+        ], 200);
+    }
+
+    public function showForAdminAndCustomer(string $id){
+        $data = Product::where('id', $id)->first();
+        if($data == null){
+            return response()->json([
+                'message' => 'data not found'
+            ], 404);
+        }
+
+        return response()->json([
+            'message' => 'ok',
+            'data' => $data
+        ], 200);
     }
 
     public function update(Request $request, string $id)
@@ -152,6 +187,91 @@ class ProductController extends Controller
             'description' => 'nullable',
             'price' => 'nullable',
             'stock' => 'nullable',
+            'categories' => 'array||nullable',
+            'categories.*.id' => 'required'
+        ]);
+
+        if(isset($validated['stock'])){
+            if($validated['stock'] == 0){
+                return response()->json([
+                    'message' => 'stock cannot is empty'
+                ], 400);
+            }
+        }
+
+        $user_id = auth()->id();
+        $data = Product::where('id', $id)->where('user_id', $user_id)->first();
+        if($data == null){
+            return response()->json([
+                'message' => 'data not found'
+            ], 404);
+        }
+
+        if(isset($validated['categories'])){
+            $data_product_category = ProductCategory::where('product_id', $id)->first();
+            if($data_product_category == null){
+                return response()->json([
+                    'data product category not found'
+                ], 404);
+            }
+
+            $data_product_category->delete();
+            $data_product = Product::where('id', $id)->where('user_id', $user_id)->first();
+            if($data_product == null){
+                return response()->json([
+                    'message' => 'data not found'
+                ], 404);
+            }
+
+            $data_product->delete();
+            $categories = $validated['categories'];
+            unset($validated['categories']);
+
+            DB::beginTransaction();
+            try{
+                $product = Product::create($validated);
+                $createdCategories = [];
+
+                foreach($categories as $category){
+                    $dt = [
+                        'product_id' => $product->id,
+                        'category_id' => $category['id']
+                    ];
+                    $createdCategories[] =  ProductCategory::create($dt);
+                }
+                $product->categories = $createdCategories;
+                DB::commit();
+                return response()->json([
+                    'message' => 'update sucessfully'
+                ], 200);
+
+            }catch(\Throwable $th){
+                DB::rollBack();
+                return response()->json([
+                    'message' => 'data failed to create'
+                ], 500);
+            }
+        }
+
+        $result = $data->update($validated);
+        if($result == false){
+            return response()->json([
+                'message' => 'error update data'
+            ], 500);
+        }
+
+        return response()->json([
+            'message' => 'data update sucesfully'
+        ], 200);
+    }
+
+    public function updateForAdmin(Request $request, string $id){
+        $validated = $request->validate([
+            'name' => 'nullable',
+            'img' => 'nullable',
+            'description' => 'nullable',
+            'price' => 'nullable',
+            'stock' => 'nullable'
         ]);
 
         if($validated['stock'] == 0){
@@ -160,18 +280,57 @@ class ProductController extends Controller
             ], 400);
         }
 
-        $data = 0;
-        if($role == 'admin'){
-            $data = Product::where('id', $id)->first();
-        }else if($role == 'seller'){
-            $user_id = auth()->id();
-            $data = Product::where('id', $id)->where('user_id', $user_id)->first();
-        }
-
+        $data = Product::where('id', $id)->first();
         if($data == null){
             return response()->json([
                 'message' => 'data not found'
             ], 404);
+        }
+
+        if(isset($validated['categories'])){
+            $data_product_category = ProductCategory::where('product_id', $id)->first();
+            if($data_product_category == null){
+                return response()->json([
+                    'data product category not found'
+                ], 404);
+            }
+
+            $data_product_category->delete();
+            $data_product = Product::where('id', $id)->first();
+            if($data_product == null){
+                return response()->json([
+                    'message' => 'data not found'
+                ], 404);
+            }
+
+            $data_product->delete();
+            $categories = $validated['categories'];
+            unset($validated['categories']);
+
+            DB::beginTransaction();
+            try{
+                $product = Product::create($validated);
+                $createdCategories = [];
+
+                foreach($categories as $category){
+                    $dt = [
+                        'product_id' => $product->id,
+                        'category_id' => $category['id']
+                    ];
+                    $createdCategories[] =  ProductCategory::create($dt);
+                }
+                $product->categories = $createdCategories;
+                DB::commit();
+                return response()->json([
+                    'message' => 'update sucessfully'
+                ], 200);
+
+            }catch(\Throwable $th){
+                DB::rollBack();
+                return response()->json([
+                    'message' => 'data failed to create'
+                ], 500);
+            }
         }
 
         $result = $data->update($validated);
@@ -188,36 +347,56 @@ class ProductController extends Controller
 
     public function destroy(string $id)
     {
-        $delete_data_product_category = 0;
-        $data_product_category = 0;
         $role = auth()->user()->role;
 
         if($role == 'customer'){
             return response()->json([
                 'message' => 'customer cannot delete data'
             ], 403);
-        }else if($role == 'admin'){
-            $data_product_category = ProductCategory::where('product_id', $id)->first();
-            if($data_product_category == null){
-                return response()->json([
-                    'message' => 'data not found'
-                ], 404);
-            }
-
-            $data = Product::where('id', $id)->first();
-        }else if($role == 'seller'){
-            $user_id = auth()->id();
-            $data_product_category = ProductCategory::where('product_id', $id)->first();
-            if($data_product_category == null){
-                return response()->json([
-                    'message' => 'data not found'
-                ], 404);
-            }
-
-            $user_id = auth()->id();
-            $data = Product::where('id', $id)->where('user_id', $user_id)->first();
         }
 
+        $user_id = auth()->id();
+        $data_product_category = ProductCategory::where('product_id', $id)->first();
+        if($data_product_category == null){
+            return response()->json([
+                'message' => 'data not found'
+            ], 404);
+        }
+
+        $user_id = auth()->id();
+        $data = Product::where('id', $id)->where('user_id', $user_id)->first();
+        if($data == null){
+            return response()->json([
+                'message' => 'data not found'
+            ], 404);
+        }
+
+        $delete_data_product_category = $data_product_category->delete();
+        if($delete_data_product_category == false){
+            return response()->json([
+                'message' => 'error to delete data product category'
+            ], 500);
+        }
+
+        $result = $data->delete();
+        if($result == false){
+            return response()->json([
+                'message' => 'error delete data'
+            ], 500);
+        }
+
+        return response()->noContent();
+    }
+
+    public function destroyForAdmin(string $id){
+        $data_product_category = ProductCategory::where('product_id', $id)->first();
+        if($data_product_category == null){
+            return response()->json([
+                'message' => 'data not found'
+            ], 404);
+        }
+
+        $data = Product::where('id', $id)->first();
         if($data == null){
             return response()->json([
                 'message' => 'data not found'
