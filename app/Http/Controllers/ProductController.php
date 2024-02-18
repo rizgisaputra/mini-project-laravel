@@ -10,18 +10,72 @@ use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user_id = auth()->id();
-        $data = Product::select('name', 'img', 'price')->where('user_id', $user_id)->get();
+        $searchProduct = $request->query("product");
+        $filterByCategory = $request->query("category");
+
+        if(isset($searchProduct)){
+            $data = Product::where("name","ILIKE","%".$searchProduct."%")
+            ->orWhere("name","ILIKE".$searchProduct."%")
+            ->orWhere("name","ILIKE","%".$searchProduct)
+            ->where('user_id', $user_id)->get();
+
+            return response()->json([
+                'status' => 'ok',
+                'data' => $data
+            ], 200);
+        }
+
+        if(isset($filterByCategory)){
+            $data = DB::table('products AS p')->select('p.id', 'p.name', 'p.img',
+            'p.description', 'p.price', 'p.stock', 'p.user_id')
+            ->join('products_categories AS pc', 'p.id', '=', 'pc.product_id')
+            ->where('pc.category_id', $filterByCategory)
+            ->where('p.user_id', $user_id)->get();
+
+            return response()->json([
+                'status' => 'ok',
+                'data' => $data
+            ]);
+        }
+
+        $data = Product::select('id','name', 'img', 'price')->where('user_id', $user_id)->get();
         return response()->json([
             'status' => 'ok',
             'data' => $data
         ], 200);
     }
 
-    public function indexForAdminAndCustomer(){
-        $data = Product::select('name', 'img', 'price')->get();
+    public function indexForAdminAndCustomer(Request $request){
+        $searchProduct = $request->query("product");
+        $filterByCategory = $request->query("category");
+
+        if(isset($searchProduct)){
+            $data = Product::where("name","ILIKE","%".$searchProduct."%")
+            ->orWhere("name","ILIKE".$searchProduct."%")
+            ->orWhere("name","ILIKE","%".$searchProduct)->get();
+
+            return response()->json([
+                'status' => 'ok',
+                'data' => $data
+            ], 200);
+        }
+
+        if(isset($filterByCategory)){
+            $data = DB::table('products AS p')->select('p.id', 'p.name', 'p.img',
+            'p.description', 'p.price', 'p.stock', 'p.user_id')
+            ->join('products_categories AS pc', 'p.id', '=', 'pc.product_id')
+            ->where('pc.category_id', $filterByCategory)->get();
+
+            return response()->json([
+                'status' => 'ok',
+                'data' => $data
+            ]);
+        }
+
+        $data = Product::select('id','name', 'img', 'price')->get();
         return response()->json([
             'status' => 'ok',
             'data' => $data
@@ -187,7 +241,7 @@ class ProductController extends Controller
             'description' => 'nullable',
             'price' => 'nullable',
             'stock' => 'nullable',
-            'categories' => 'array||nullable',
+            'categories' => 'nullable|array',
             'categories.*.id' => 'required'
         ]);
 
@@ -211,7 +265,7 @@ class ProductController extends Controller
             $data_product_category = ProductCategory::where('product_id', $id)->first();
             if($data_product_category == null){
                 return response()->json([
-                    'data product category not found'
+                    'message' => 'data product category not found'
                 ], 404);
             }
 
@@ -223,23 +277,25 @@ class ProductController extends Controller
                 ], 404);
             }
 
-            $data_product->delete();
             $categories = $validated['categories'];
             unset($validated['categories']);
 
+            $result = $data_product->update($validated);
+            if($result == false){
+                return response()->json([
+                    'message' => 'error update data'
+                ], 500);
+            }
+
             DB::beginTransaction();
             try{
-                $product = Product::create($validated);
-                $createdCategories = [];
-
                 foreach($categories as $category){
                     $dt = [
-                        'product_id' => $product->id,
+                        'product_id' => $id,
                         'category_id' => $category['id']
                     ];
-                    $createdCategories[] =  ProductCategory::create($dt);
+                    ProductCategory::create($dt);
                 }
-                $product->categories = $createdCategories;
                 DB::commit();
                 return response()->json([
                     'message' => 'update sucessfully'
@@ -267,11 +323,13 @@ class ProductController extends Controller
 
     public function updateForAdmin(Request $request, string $id){
         $validated = $request->validate([
-            'name' => 'nullable',
-            'img' => 'nullable',
-            'description' => 'nullable',
-            'price' => 'nullable',
-            'stock' => 'nullable'
+            'name' => 'required',
+            'img' => 'required',
+            'description' => 'required',
+            'price' => 'required',
+            'stock' => 'required',
+            'categories' => 'array|required',
+            'categories.*.id' => 'required'
         ]);
 
         if($validated['stock'] == 0){
@@ -291,7 +349,7 @@ class ProductController extends Controller
             $data_product_category = ProductCategory::where('product_id', $id)->first();
             if($data_product_category == null){
                 return response()->json([
-                    'data product category not found'
+                    'message' => 'data product category not found'
                 ], 404);
             }
 
@@ -303,23 +361,25 @@ class ProductController extends Controller
                 ], 404);
             }
 
-            $data_product->delete();
             $categories = $validated['categories'];
             unset($validated['categories']);
 
+            $result = $data_product->update($validated);
+            if($result == false){
+                return response()->json([
+                    'message' => 'error update data'
+                ], 500);
+            }
+
             DB::beginTransaction();
             try{
-                $product = Product::create($validated);
-                $createdCategories = [];
-
                 foreach($categories as $category){
                     $dt = [
-                        'product_id' => $product->id,
+                        'product_id' => $id,
                         'category_id' => $category['id']
                     ];
-                    $createdCategories[] =  ProductCategory::create($dt);
+                    ProductCategory::create($dt);
                 }
-                $product->categories = $createdCategories;
                 DB::commit();
                 return response()->json([
                     'message' => 'update sucessfully'

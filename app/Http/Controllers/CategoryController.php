@@ -10,8 +10,20 @@ class CategoryController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $searchCategory = $request->query("category");
+        if(isset($searchCategory)){
+            $data = Category::where("category","ILIKE","%".$searchCategory."%")
+            ->orWhere("category","ILIKE".$searchCategory."%")
+            ->orWhere("category","ILIKE","%".$searchCategory)->get();
+
+            return response()->json([
+                'status' => 'ok',
+                'data' => $data
+            ], 200);
+        }
+
         $data = Category::select('category')->get();
         return response()->json([
             'status' => 'ok',

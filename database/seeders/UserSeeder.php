@@ -23,5 +23,23 @@ class UserSeeder extends Seeder
             'no_hp' => '0895379254459',
             'role' => 'admin'
         ]);
+
+        DB::table('users')->insert([
+            'name' => 'Cashadi',
+            'email' => 'ichas@gmail.com',
+            'password' => Hash::make('ichas123'),
+            'addres' => 'Jln. Masjid Nurul Fajri',
+            'no_hp' => '0895325254459',
+            'role' => 'seller'
+        ]);
+
+        DB::table('users')->insert([
+            'name' => 'Pauji',
+            'email' => 'pauji@gmail.com',
+            'password' => Hash::make('pauji123'),
+            'addres' => 'Jln. Masjid Nurul Fajri',
+            'no_hp' => '0895325212459',
+            'role' => 'customer'
+        ]);
     }
 }

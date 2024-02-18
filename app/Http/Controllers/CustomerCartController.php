@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\CustomerCart;
 use App\Models\HeaderCustomerCart;
 use App\Models\HeaderDetailCustomerCart;
+use App\Models\HeaderDetailOrder;
+use App\Models\HeaderOrder;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -37,8 +39,8 @@ class CustomerCartController extends Controller
             'quantity' => 'required'
         ]);
 
-        $getStockProduct = Product::select('stock')->where('id', $validated['product_id'])->first();
-        if($validated['quantity' > $getStockProduct]){
+        $getStockProduct = Product::select('stock')->where('id', $validated['product_id'])->sum('stock');
+        if($validated['quantity'] > $getStockProduct){
             return response()->json([
                 'message' => 'quantity higher than stock'
             ], 500);
@@ -235,7 +237,7 @@ class CustomerCartController extends Controller
         }
 
         $validated['total'] = $findProduct['price'] * $validated['quantity'];
-        $data = CustomerCart::where('id', $id);
+        $data = CustomerCart::where('id', $id)->first();
         if($data == null){
             return response()->json([
                 'message' => 'data not found'
@@ -292,7 +294,7 @@ class CustomerCartController extends Controller
     public function checkoutFromCart(Request $request){
         if(auth()->user()->role == 'admin' || auth()->user()->role == 'seller'){
             return response()->json([
-                'message' => 'customer or admin cannot checkout'
+                'message' => 'seller or admin cannot checkout'
             ], 403);
         }
 
@@ -301,9 +303,27 @@ class CustomerCartController extends Controller
             'carts.*.id' => 'required'
         ]);
 
+        $dataHeader = [
+            'user_id' => auth()->id(),
+            'total_product' => null,
+            'total_quantity' => null,
+            'total_price' => null
+        ];
+        $createHeader = HeaderOrder::create($dataHeader);
+
         $carts = $validated['carts'];
         foreach($carts as $cart){
             $data = CustomerCart::where('id', $cart['id'])->where('user_id', auth()->id())->first();
+            if($data == null){
+                return response()->json([
+                    'message' => 'there is product not found'
+                ], 404);
+            }
+        }
+
+        foreach($carts as $cart){
+            $data = CustomerCart::where('id', $cart['id'])->where('user_id', auth()->id())->first();
+
             if($data == null){
                 return response()->json([
                     'message' => 'data not found'
@@ -323,6 +343,14 @@ class CustomerCartController extends Controller
             $product->stock = $stock;
             $product->save();
 
+            $dataHeaderDetail = [
+                'header_order_id' => $createHeader['id'],
+                'product_id' => $id_product,
+                'quantity' => $quantity,
+                'price' => $product['price'] * $quantity
+            ];
+            $createHeaderDetail = HeaderDetailOrder::create($dataHeaderDetail);
+
             $result = $data->delete();
             if($result == false){
                 return response()->json([
@@ -330,6 +358,39 @@ class CustomerCartController extends Controller
                 ], 500);
             }
         }
+
+        $getDetailHeader = HeaderDetailOrder::where('header_order_id', $createHeader['id'])->get();
+        $total_product = 0;
+        $total_quantity = 0;
+        $total_price = 0;
+        foreach($getDetailHeader as $data){
+            if(isset($data['product_id'])){
+                $total_product++;
+            }
+            if(isset($data['quantity'])){
+                $total_quantity += $data['quantity'];
+            }
+            if(isset($data['price'])){
+                 $total_price += $data['price'];
+            }
+        }
+
+        $dataUpdate = [
+            'total_product' => $total_product,
+            'total_quantity'=> $total_quantity,
+            'total_price' => $total_price
+        ];
+
+         $result = HeaderOrder::where('id', $createHeader['id'])->update($dataUpdate);
+         if($result == false){
+            return response()->json([
+                'message' => 'error to checkout'
+            ], 500);
+         }
+
+         return response()->json([
+            'message' => 'checkout sucessfully'
+         ], 200);
     }
 
     public function checkout(Request $request){
@@ -337,6 +398,52 @@ class CustomerCartController extends Controller
            'product_id' => 'required',
            'quantity' => 'required'
         ]);
-        
+
+        $findProduct = Product::where('id', $validated['product_id'])->first();
+        if($findProduct == null){
+            return response()->json([
+               'message' => 'data not found'
+            ], 404);
+        }
+
+        $getStock = Product::select('stock')->where('id', $validated['product_id'])->sum('stock');
+        if($validated['quantity'] > $getStock){
+            return response()->json([
+                'message' => 'total order more than stock'
+            ], 400);
+        }
+
+        $getPrice = Product::select('price')->where('id', $validated['product_id'])->sum('price');
+        $dataHeader = [
+            'user_id' => auth()->id(),
+            'total_product' => 1,
+            'total_quantity' => $validated['quantity'],
+            'total_price' => $validated['quantity'] * $getPrice
+        ];
+        $createHeader = HeaderOrder::create($dataHeader);
+        if($createHeader == false){
+            return response()->json([
+                'message' => 'error to add data'
+            ], 500);
+        }
+
+        $dataHeaderDetail = [
+            'header_order_id' => $createHeader['id'],
+            'product_id' => $findProduct['id'],
+            'quantity' =>  $validated['quantity'],
+            'price' => $validated['quantity'] * $getPrice
+        ];
+        $createHeaderDetail = HeaderDetailOrder::create($dataHeaderDetail);
+        if($createHeaderDetail == false){
+            return response()->json([
+                'message' => 'error to add data'
+            ], 500);
+        }
+
+        $findProduct['stock'] = $getStock - $validated['quantity'];
+        $findProduct->save();
+        return response()->json([
+            'message' => 'checkout sucessfully'
+        ], 200);
     }
 }
